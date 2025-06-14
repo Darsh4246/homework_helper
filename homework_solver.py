@@ -105,7 +105,7 @@ for col, example in zip(cols, examples):
     with col:
         if st.button(example):
             st.session_state.math_expr = example
-            st.experimental_rerun()
+            st.rerun()
 
 # Initialize session state
 if 'math_expr' not in st.session_state:
