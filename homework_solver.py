@@ -57,7 +57,10 @@ Enter mathematical expressions like:
 - `2*x + 3` 
 - `x**2 - 1 = 0` 
 - `sin(pi/2)`
-- `integrate(x**2, x)`
+- `integrate(x**2, x)`\n
+Or equations like:
+- `2*x + 3 = 0`
+- `x**2 + 2*x + 1 = 0`
 """)
 
 # Input field
@@ -89,23 +92,6 @@ if expr:
         st.latex(f"Solution: {latex(result)}")
     else:
         st.error(result)
-
-# Add some examples
-st.markdown("### Examples")
-examples = [
-    "x**2 - 4 = 0",
-    "diff(sin(x) + x**2, x)",
-    "integrate(exp(-x**2), x)",
-    "limit(sin(x)/x, x, 0)",
-    "Matrix([[1, 2], [3, 4]]) * Matrix([x, y])"
-]
-
-cols = st.columns(len(examples))
-for col, example in zip(cols, examples):
-    with col:
-        if st.button(example):
-            st.session_state.math_expr = example
-            st.rerun()
 
 # Initialize session state
 if 'math_expr' not in st.session_state:
