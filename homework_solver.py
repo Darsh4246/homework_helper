@@ -1,36 +1,54 @@
-from sympy import symbols, Eq, solveset, sin, cos, tan, log, exp, pi, S
-from sympy.parsing.sympy_parser import parse_expr
+from sympy import *
+from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
 
-# Define symbols
+# Initialize symbols
 x, y, z = symbols('x y z')
 
-def advanced_solver(expression):
+# Set up transformations for parsing (including implicit multiplication)
+transformations = (standard_transformations + (implicit_multiplication_application,))
+
+
+def evaluate_expression(expression):
     try:
         expression = expression.strip()
-        
-        # If the expression contains '=', treat it as an equation
+
+        # Try solving if equation
         if '=' in expression:
-            lhs, rhs = expression.split('=')
-            eq = Eq(parse_expr(lhs), parse_expr(rhs))
-            solution = solveset(eq, x, domain=S.Reals)
-            return f"Solution: {solution}"
+            parts = expression.split('=', 1)  # Split on first '=' only
+            if len(parts) != 2:
+                return "Error: Equation must contain exactly one '='"
+
+            lhs, rhs = parts
+            try:
+                lhs_expr = parse_expr(lhs, transformations=transformations)
+                rhs_expr = parse_expr(rhs, transformations=transformations)
+                equation = Eq(lhs_expr, rhs_expr)
+                solution = solve(equation)
+                return f"Solution: {solution}"
+            except Exception as e:
+                return f"Error parsing equation: {e}"
         else:
-            result = parse_expr(expression)
-            return f"Result: {result}"
+            try:
+                result = parse_expr(expression, transformations=transformations)
+                simplified = simplify(result)
+                expanded = expand(result)
+                return (f"Simplified: {simplified}\n"
+                        f"Expanded: {expanded}\n"
+                        f"Evaluated: {result.evalf() if result.is_number else result}")
+            except Exception as e:
+                return f"Error parsing expression: {e}"
     except Exception as e:
-        return f"Error: {e}"
+        return f"Unexpected error: {e}"
 
-# Main loop to interact with the user
-if __name__ == '__main__':
-    print("🔢 Welcome to the Python Homework Solver!")
-    print("Supports algebra, trig, log, and exponential equations!")
-    print("Use 'x' as the variable. Type 'exit' to quit.\n")
 
-    while True:
-        user_input = input("Enter an expression or equation: ")
-        if user_input.lower() == 'exit':
-            print("Goodbye!")
-            break
-        result = advanced_solver(user_input)
-        print(result)
-        print("-")
+# Sample usage
+print("Math Expression Evaluator")
+print("Enter expressions like '2*x + 3', 'x^2 - 1 = 0', or 'sin(pi/2)'")
+print("Type 'exit' to quit\n")
+
+while True:
+    expr = input("Enter a math expression: ")
+    if expr.lower() in ('exit', 'quit'):
+        break
+    print(evaluate_expression(expr))
+    print()  # Add blank line for readability
