@@ -89,7 +89,7 @@ DEFAULT_PROFILE = {
 }
 
 def query_huggingface(question: str, subject: str) -> str:
-    prompt = f"You're an expert {subject} tutor named EduBot. Answer the following question clearly and helpfully:"
+    prompt = f"Answer the following {subject} question clearly and concisely:\n\n{question}"
 
     Q: {question}
     A:""
