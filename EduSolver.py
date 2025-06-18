@@ -8,7 +8,7 @@ import os
 
 # Hugging Face API Configuration
 HUGGINGFACE_API_KEY = os.getenv("EduBot_API_Key")
-HUGGINGFACE_MODEL = "HuggingFaceH4/zephyr-7b-beta"
+HUGGINGFACE_MODEL = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
 st.set_page_config(
     page_title="EduSolve - Student Q&A with EduBots",
