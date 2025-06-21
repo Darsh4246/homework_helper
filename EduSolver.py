@@ -1,11 +1,10 @@
 # EduSolver with Sidebar Navigation, Quiz Mode, and Score Tracking
-
+from openai import OpenAI
 import streamlit as st
 from typing import Optional, Dict
 import base64
 import time
 import datetime
-import requests
 import os
 import random
 import json
@@ -13,6 +12,10 @@ import json
 # Hugging Face API Configuration
 HUGGINGFACE_API_KEY = os.getenv("EduBot_API_Key")
 HUGGINGFACE_MODEL = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+
+def format_timestamp(timestamp: float) -> str:
+    dt = datetime.datetime.fromtimestamp(timestamp)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 # Subjects and Example Questions
 SUBJECTS = {
@@ -42,6 +45,37 @@ SUBJECTS = {
     }
 }
 
+def render_chat_message(message: Dict, is_user: bool) -> None:
+    bg_color = "#1d4ed8" if is_user else "#f97316"
+    text_color = "#ffffff" if is_user else "#000000"
+    style = (
+        f"background-color: {bg_color}; color: {text_color}; "
+        "padding: 16px; border-radius: 18px; width: 100%; margin-bottom: 12px; "
+        "white-space: pre-wrap; overflow-wrap: break-word; font-size: 0.95rem; line-height: 1.4;"
+    )
+    container_col_user = st.columns([1, 5])
+    container_col_ai = st.columns([5, 1])
+    col = container_col_user[1] if is_user else container_col_ai[0]
+    with col:
+        message_html = f'<div style="{style}">{message.get("text","")}</div>'
+        if message.get("image_base64"):
+            image_html = (
+                f'<img src="data:image/png;base64,{message["image_base64"]}" '
+                'alt="Question Image" style="max-width:100%; margin-top:8px; border-radius:12px;"/>'
+            )
+            message_html = (
+                f'<div style="{style}">{message.get("text","")}' + "<br/>" + image_html + "</div>"
+            )
+        st.markdown(message_html, unsafe_allow_html=True)
+        timestamp = message.get("timestamp")
+        if timestamp:
+            ts_str = format_timestamp(timestamp)
+            st.markdown(
+                f'<p style="font-size:10px; color:gray; margin-top:-10px; text-align: right;">{ts_str}</p>',
+                unsafe_allow_html=True
+            )
+
+
 # Helper functions
 def render_quiz(subject):
     if subject not in SUBJECTS or "quiz" not in SUBJECTS[subject]:
@@ -55,7 +89,7 @@ def render_quiz(subject):
     random.shuffle(quiz)
     for i, q in enumerate(quiz):
         st.markdown(f"**Q{i+1}: {q['q']}**")
-        selected = st.radio("", q["options"], key=f"quiz_q{i}")
+        selected = st.radio("Select your answer:", q["options"], key=f"quiz_q{i}", label_visibility="collapsed")
         if st.session_state.get("quiz_submitted", False):
             if selected == q["answer"]:
                 st.success("Correct!")
@@ -99,31 +133,31 @@ def show_quiz_history():
     href = f'<a href="data:file/json;base64,{b64}" download="quiz_history.json">📥 Download Quiz History</a>'
     st.markdown(href, unsafe_allow_html=True)
 
-def query_huggingface(question: str, subject: str) -> str:
+
+def query_model(question: str, subject: str) -> str:
     prompt = f"Answer the following {subject} question clearly and concisely and if it is not a {subject} question, then ignore:\n\n{question}"
-    headers = {
-        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "inputs": prompt,
-        "parameters": {
-            "temperature": 0.7,
-            "max_new_tokens": 512,
-            "return_full_text": False
-        }
-    }
-    response = requests.post(
-        f"https://api-inference.huggingface.co/models/{HUGGINGFACE_MODEL}",
-        headers=headers,
-        json=data
-    )
-    if response.status_code != 200:
-        return f"Error: {response.status_code} - {response.text}"
+
+    token = os.getenv("APIKEY")  # Store this in environment
+    endpoint = "https://models.github.ai/inference"
+    model = "deepseek/DeepSeek-V3-0324"  # Or another model if specified
+
     try:
-        return response.json()[0]["generated_text"]
+        client = OpenAI(base_url=endpoint, api_key=token)
+
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a helpful educational assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            model=model,
+            temperature=0.7,
+            top_p=1.0
+        )
+
+        return response.choices[0].message.content.strip()
+
     except Exception as e:
-        return f"Failed to parse response: {e}"
+        return f"Error from GitHub Model API: {e}"
 
 def main():
     st.set_page_config(page_title="EduSolve", layout="wide")
@@ -137,9 +171,9 @@ def main():
         question = st.text_area("Your question:")
         if st.button("Submit") and question.strip():
             with st.spinner("EduBot is thinking..."):
-                response = query_huggingface(question, subject)
-            st.markdown("**EduBot:**")
-            st.success(response)
+                response = query_model(question, subject)
+            render_chat_message({"text": question, "timestamp": time.time()}, is_user=True)
+            render_chat_message({"text": response, "timestamp": time.time()}, is_user=False)
 
     elif page == "Quiz Mode":
         st.title(f"Quiz: {subject}")
