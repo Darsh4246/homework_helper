@@ -1,5 +1,6 @@
 # EduSolver with Sidebar Navigation, Quiz Mode, and Score Tracking
 from openai import OpenAI
+from html import escape
 import streamlit as st
 from typing import Optional, Dict
 import base64
@@ -16,6 +17,22 @@ HUGGINGFACE_MODEL = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 def format_timestamp(timestamp: float) -> str:
     dt = datetime.datetime.fromtimestamp(timestamp)
     return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def format_response_for_streamlit(response: str) -> str:
+    import re
+
+    # Convert LaTeX-like blocks to proper LaTeX
+    response = re.sub(r'\[\s*(.*?)\s*\]', r'$$\1$$', response, flags=re.DOTALL)  # block equations in [ ]
+
+    # Replace double parentheses like ((x)) to LaTeX-style $x$
+    response = re.sub(r'\(\((.*?)\)\)', r'$\1$', response)
+
+    # Fix backslash escaping for LaTeX fractions and other math
+    response = response.replace(r'\frac', '\\frac')
+
+    return response
+
 
 # Subjects and Example Questions
 SUBJECTS = {
@@ -57,7 +74,8 @@ def render_chat_message(message: Dict, is_user: bool) -> None:
     container_col_ai = st.columns([5, 1])
     col = container_col_user[1] if is_user else container_col_ai[0]
     with col:
-        message_html = f'<div style="{style}">{message.get("text","")}</div>'
+        formatted_text = format_response_for_streamlit(message.get("text", ""))
+        message_html = f'<div style="{style}">{formatted_text}</div>'
         if message.get("image_base64"):
             image_html = (
                 f'<img src="data:image/png;base64,{message["image_base64"]}" '
@@ -66,7 +84,7 @@ def render_chat_message(message: Dict, is_user: bool) -> None:
             message_html = (
                 f'<div style="{style}">{message.get("text","")}' + "<br/>" + image_html + "</div>"
             )
-        st.markdown(message_html, unsafe_allow_html=True)
+        st.markdown(formatted_text, unsafe_allow_html=True)
         timestamp = message.get("timestamp")
         if timestamp:
             ts_str = format_timestamp(timestamp)
