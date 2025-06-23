@@ -22,16 +22,36 @@ def format_timestamp(timestamp: float) -> str:
 def format_response_for_streamlit(response: str) -> str:
     import re
 
-    # Convert LaTeX-like blocks to proper LaTeX
-    response = re.sub(r'\[\s*(.*?)\s*\]', r'$$\1$$', response, flags=re.DOTALL)  # block equations in [ ]
-
-    # Replace double parentheses like ((x)) to LaTeX-style $x$
+    # Replace ((variable)) with $variable$
     response = re.sub(r'\(\((.*?)\)\)', r'$\1$', response)
 
-    # Fix backslash escaping for LaTeX fractions and other math
+    # Convert [ equations ] into LaTeX blocks: [ v = u + at ] → $$v = u + at$$
+    response = re.sub(r'\[\s*(.*?)\s*\]', lambda m: f"$$\n{m.group(1).strip()}\n$$", response, flags=re.DOTALL)
+
+    # Auto-detect inline equations (e.g. v^2 = u^2 + 2as) that are not already inside $$...$$ or $...$
+    lines = response.split("\n")
+    formatted_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        # If line looks like an equation (has = and letters/numbers), wrap in $$...$$
+        if (
+            "=" in stripped
+            and any(char in stripped for char in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+            and not stripped.startswith("$$")
+        ):
+            formatted_lines.append(f"$$\n{stripped}\n$$")
+        else:
+            formatted_lines.append(line)
+
+    response = "\n".join(formatted_lines)
+
+    # Fix backslashes that might have been escaped incorrectly
     response = response.replace(r'\frac', '\\frac')
 
     return response
+
 
 
 # Subjects and Example Questions
