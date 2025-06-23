@@ -63,6 +63,7 @@ SUBJECTS = {
 }
 
 def render_chat_message(message: Dict, is_user: bool) -> None:
+    from html import escape  # needed for safety
     bg_color = "#1d4ed8" if is_user else "#f97316"
     text_color = "#ffffff" if is_user else "#000000"
     style = (
@@ -73,18 +74,29 @@ def render_chat_message(message: Dict, is_user: bool) -> None:
     container_col_user = st.columns([1, 5])
     container_col_ai = st.columns([5, 1])
     col = container_col_user[1] if is_user else container_col_ai[0]
+
     with col:
-        formatted_text = format_response_for_streamlit(message.get("text", ""))
+        # Format LaTeX/Markdown content
+        raw_text = message.get("text", "")
+        formatted_text = format_response_for_streamlit(raw_text)
+
+        # Apply styling around formatted text
         message_html = f'<div style="{style}">{formatted_text}</div>'
+
+        # If there's an image, add it below the message
         if message.get("image_base64"):
             image_html = (
                 f'<img src="data:image/png;base64,{message["image_base64"]}" '
                 'alt="Question Image" style="max-width:100%; margin-top:8px; border-radius:12px;"/>'
             )
             message_html = (
-                f'<div style="{style}">{message.get("text","")}' + "<br/>" + image_html + "</div>"
+                f'<div style="{style}">{formatted_text}<br/>{image_html}</div>'
             )
-        st.markdown(formatted_text, unsafe_allow_html=True)
+
+        # Display message
+        st.markdown(message_html, unsafe_allow_html=True)
+
+        # Show timestamp if available
         timestamp = message.get("timestamp")
         if timestamp:
             ts_str = format_timestamp(timestamp)
@@ -92,6 +104,7 @@ def render_chat_message(message: Dict, is_user: bool) -> None:
                 f'<p style="font-size:10px; color:gray; margin-top:-10px; text-align: right;">{ts_str}</p>',
                 unsafe_allow_html=True
             )
+
 
 
 # Helper functions
